@@ -95,7 +95,7 @@ const C = window.OYUN;
 const $ = s => document.querySelector(s);
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
-const DPR = Math.min(window.devicePixelRatio || 1, 2);
+const DPR = Math.min(window.devicePixelRatio || 1, 1.5); // pil/ısınma için çözünürlük sınırı
 
 // ================= Takımlar =================
 const teams = C.ulkeler.map((u, i) => ({ ...u, i, puan: 0, x: 0, phase: Math.random() * 6, boost: 0, dust: [] }));
@@ -267,7 +267,11 @@ function drawAnimal(ctx, t, x, groundY, s, glow) {
 
   const dx = x - ox, dy = footY - 0.62 * s - bounce - oy;
   ctx.save();
-  if (glow) { ctx.shadowColor = '#ffd54a'; ctx.shadowBlur = 22; }
+  if (glow) { // ucuz parlama (shadowBlur telefonu çok yoruyor)
+    const gx = x, gy = footY - 0.55 * s, gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, 0.9 * s);
+    gr.addColorStop(0, 'rgba(255,213,74,0.35)'); gr.addColorStop(1, 'rgba(255,213,74,0)');
+    ctx.fillStyle = gr; ctx.fillRect(gx - s, gy - s, 2 * s, 2 * s);
+  }
   ctx.drawImage(off2, dx, dy);
   ctx.drawImage(off, dx, dy);
   ctx.restore();
@@ -276,7 +280,10 @@ function drawAnimal(ctx, t, x, groundY, s, glow) {
 // ================= Animasyon döngüsü =================
 let groundOff = 0, last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  requestAnimationFrame(frame);
+  if (now - last < 31) return;            // saniyede ~30 kare: daha az ısınma
+  if (document.hidden) { last = now; return; }
+  const dt = Math.min(0.08, (now - last) / 1000); last = now;
   const max = Math.max(1, ...teams.map(t => t.puan));
   groundOff += dt * 260;
   teams.forEach(t => {
@@ -325,7 +332,6 @@ function frame(now) {
     drawAnimal(c, t, t.x, groundY, s, t.i === leader && t.puan > 0);
     if (t.i === leader && t.puan > 0) { c.font = `${0.32 * s}px sans-serif`; c.textAlign = 'center'; c.fillText('👑', t.x + 0.45 * s, groundY - 1.25 * s); }
   });
-  requestAnimationFrame(frame);
 }
 
 // ================= Puan ve lider =================
