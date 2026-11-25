@@ -37,6 +37,15 @@ function connect(user, room) {
     room.durum = 'bagli';
     send(room, 'durum', { durum: 'bagli' });
     console.log(`[${user}] bağlandı`);
+    conn.fetchAvailableGifts().then(r => {
+      const list = Array.isArray(r) ? r : (r?.gifts || r?.data?.gifts || []);
+      room.gifts = {};
+      for (const x of list) {
+        const img = x?.image?.url_list?.[0] || x?.icon?.url_list?.[0] || x?.image?.url?.[0];
+        if (x?.name && img) room.gifts[String(x.name).toLowerCase()] = img;
+      }
+      send(room, 'hediyeler', { liste: room.gifts });
+    }).catch(() => {});
   }).catch(err => {
     room.durum = 'hata';
     const msg = String(err?.message || err);
@@ -59,6 +68,7 @@ function connect(user, room) {
     if (delta > 0) {
       send(room, 'hediye', {
         hediye: giftName, giftId: d.giftId, adet: delta, coin,
+        resim: g.giftImage?.url?.[0] || g.icon?.url?.[0] || d.extendedGiftInfo?.image?.url_list?.[0] || '',
         kullanici: d.user?.nickname || d.user?.uniqueId || '',
       });
     }
@@ -100,6 +110,7 @@ http.createServer((req, res) => {
     const room = getRoom(user);
     room.clients.add(res);
     res.write(`data: ${JSON.stringify({ type: 'durum', durum: room.durum })}\n\n`);
+    if (room.gifts) res.write(`data: ${JSON.stringify({ type: 'hediyeler', liste: room.gifts })}\n\n`);
     if (room.durum === 'hata' || room.durum === 'bitti' || room.durum === 'koptu') scheduleRetry(user, room);
     const ping = setInterval(() => res.write(': ping\n\n'), 20000);
     req.on('close', () => { clearInterval(ping); room.clients.delete(res); });

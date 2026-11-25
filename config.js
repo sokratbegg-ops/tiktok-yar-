@@ -2,12 +2,15 @@
 // Bu dosyayı GitHub'da düzenleyerek ülkeleri, hediyeleri ve müzikleri değiştirebilirsin.
 //
 // hediye   : O ülkeye puan veren TikTok hediyesinin İngilizce adı (Rose, TikTok, GG, Ice Cream Cone, Heart Me ...)
+// hediyeAdi: Ekranda yazacak hediye adı (Türkçe)
+// hediyeIkon: Yayına bağlanmadan önce gösterilecek simge. Bağlanınca TikTok'un gerçek hediye resmi gösterilir.
 // kelimeler: Yorumda bunlardan biri yazılırsa ülkeye "yorumPuani" kadar puan eklenir
-// hayvan   : Koşan hayvan (emoji). Tam vücut olanlar iyi durur: 🐎 🐆 🐅 🐂 🐫 🐕 🐈 🦬 🐘 🦏 🐊
-// bayrak   : Bayrak emojisi. Emojisi olmayan bayraklar için boş bırak, renklerden küçük bayrak çizilir (gunes: true ortaya sarı güneş ekler)
+// hayvan   : "kurt" veya "aslan"
+// bayrak   : Bayrak emojisi. Emojisi olmayanlar için boş bırak, renklerden küçük bayrak çizilir
+// amblem   : Hayvanın üstüne çizilen işaret: "ay" (ay yıldız), "gunes" (sarı güneş) veya ""
 // renkler  : Bayrak renkleri (hayvanın üstüne çizilen şeritler)
-// muzik    : Öne geçince çalacak şarkı. Projeye yüklediğin dosyanın adı, ör. "turkiye.mp3".
-//            Boş bırakırsan oyun her ülke için kendi küçük melodisini çalar.
+// muzik    : Şarkıyı en kolay oyunun açılış ekranındaki "Müzik seç" butonundan telefonundan seçersin.
+//            İstersen buraya projeye yüklediğin dosyanın adını da yazabilirsin, ör. "dombra.mp3".
 
 window.OYUN = {
   baslik: "Türkiye mi, Kürdistan mı? Hediye at, öne geçir!",
@@ -15,9 +18,9 @@ window.OYUN = {
   hediyeCoinIleCarp: true, // true: pahalı hediye daha çok puan verir (coin x adet)
 
   ulkeler: [
-    { ad: "Türkiye",    bayrak: "🇹🇷", hayvan: "🐎", renkler: ["#e30a17", "#ffffff", "#e30a17"],
-      hediye: "Rose",           kelimeler: ["türkiye", "turkiye", "tr", "🇹🇷"], muzik: "" },
-    { ad: "Kürdistan",  bayrak: "", gunes: true, hayvan: "🦬", renkler: ["#ed2024", "#ffffff", "#278e43"],
-      hediye: "Heart Me",       kelimeler: ["kürdistan", "kurdistan", "kürt", "kurd", "kurdish", "کوردستان", "kurdistane"], muzik: "" },
+    { ad: "Türkiye",   bayrak: "🇹🇷", hayvan: "kurt",  renkler: ["#e30a17"], amblem: "ay",
+      hediye: "Rose",     hediyeAdi: "Gül",      hediyeIkon: "🌹", kelimeler: ["türkiye", "turkiye", "tr", "türk", "turk", "🇹🇷"], muzik: "" },
+    { ad: "Kürdistan", bayrak: "",    hayvan: "aslan", renkler: ["#ed2024", "#ffffff", "#278e43"], amblem: "gunes",
+      hediye: "Heart Me", hediyeAdi: "Heart Me", hediyeIkon: "💗", kelimeler: ["kürdistan", "kurdistan", "kürt", "kurd", "kurdish", "کوردستان", "kurdistane"], muzik: "" },
   ],
 };
