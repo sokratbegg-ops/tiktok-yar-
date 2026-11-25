@@ -34,7 +34,7 @@ function connect(user, room) {
   send(room, 'durum', { durum: 'baglaniyor' });
 
   conn.connect().then(() => {
-    room.durum = 'bagli';
+    room.durum = 'bagli'; room.fails = 0;
     send(room, 'durum', { durum: 'bagli' });
     console.log(`[${user}] bağlandı`);
     conn.fetchAvailableGifts().then(r => {
@@ -47,11 +47,17 @@ function connect(user, room) {
       send(room, 'hediyeler', { liste: room.gifts });
     }).catch(() => {});
   }).catch(err => {
-    room.durum = 'hata';
     const msg = String(err?.message || err);
-    send(room, 'durum', { durum: 'hata', mesaj: msg });
-    console.log(`[${user}] bağlanamadı: ${msg}`);
-    scheduleRetry(user, room);
+    room.fails = (room.fails || 0) + 1;
+    let wait = Math.min(15000 * 2 ** (room.fails - 1), 5 * 60000);     // 15 sn, 30 sn, 1 dk, 2 dk ... en fazla 5 dk
+    let durum = 'hata';
+    if (/rate.?limit/i.test(msg)) { durum = 'limit'; wait = 10 * 60000; } // limit dolduysa 10 dk bekle
+    else if (/online/i.test(msg)) { durum = 'hata'; wait = Math.max(wait, 30000); }
+    room.durum = durum;
+    room.nextTry = Date.now() + wait;
+    send(room, 'durum', { durum, mesaj: msg, bekle: Math.round(wait / 1000) });
+    console.log(`[${user}] bağlanamadı (${Math.round(wait / 1000)} sn sonra tekrar): ${msg.split('\n')[0]}`);
+    scheduleRetry(user, room, wait);
   });
 
   conn.on(WebcastEvent.GIFT, d => {
@@ -79,22 +85,26 @@ function connect(user, room) {
   });
 
   conn.on(WebcastEvent.STREAM_END, () => {
+    room.durum = 'bitti';
     send(room, 'durum', { durum: 'bitti' });
-    scheduleRetry(user, room);
+    scheduleRetry(user, room, 60000);
   });
   conn.on(ControlEvent.DISCONNECTED, () => {
-    if (room.durum === 'bagli') { room.durum = 'koptu'; send(room, 'durum', { durum: 'koptu' }); scheduleRetry(user, room); }
+    if (room.durum === 'bagli') { room.durum = 'koptu'; send(room, 'durum', { durum: 'koptu' }); scheduleRetry(user, room, 10000); }
   });
   conn.on(ControlEvent.ERROR, () => {});
 }
 
-function scheduleRetry(user, room) {
+function scheduleRetry(user, room, wait = 15000) {
+  if (room.retry && room.retryAt && room.retryAt > Date.now()) return; // zaten bekleyen bir deneme var
   clearTimeout(room.retry);
+  room.retryAt = Date.now() + wait;
   room.retry = setTimeout(() => {
+    room.retry = null; room.retryAt = 0;
     if (room.clients.size === 0) { try { room.conn?.disconnect(); } catch {} rooms.delete(user); return; }
     try { room.conn?.disconnect(); } catch {}
     connect(user, room);
-  }, 15000);
+  }, wait);
 }
 
 const files = { '/': 'index.html', '/index.html': 'index.html', '/config.js': 'config.js' };
@@ -111,7 +121,7 @@ http.createServer((req, res) => {
     room.clients.add(res);
     res.write(`data: ${JSON.stringify({ type: 'durum', durum: room.durum })}\n\n`);
     if (room.gifts) res.write(`data: ${JSON.stringify({ type: 'hediyeler', liste: room.gifts })}\n\n`);
-    if (room.durum === 'hata' || room.durum === 'bitti' || room.durum === 'koptu') scheduleRetry(user, room);
+    if (['hata', 'bitti', 'koptu', 'limit'].includes(room.durum)) scheduleRetry(user, room, Math.max(0, (room.nextTry || 0) - Date.now()) || 15000);
     const ping = setInterval(() => res.write(': ping\n\n'), 20000);
     req.on('close', () => { clearInterval(ping); room.clients.delete(res); });
     return;

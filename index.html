@@ -465,7 +465,8 @@ function onComment(e) {
 }
 function setStatus(text, cls) { const s = $('#status'); s.textContent = text; s.className = cls || ''; }
 const statusText = { baglaniyor: ['bağlanıyor…'], bagli: ['● canlı yayına bağlı', 'ok'], hata: ['yayın bulunamadı, tekrar deneniyor…', 'bad'],
-                     bitti: ['yayın bitti', 'bad'], koptu: ['bağlantı koptu, tekrar deneniyor…', 'bad'] };
+                     bitti: ['yayın bitti', 'bad'], koptu: ['bağlantı koptu, tekrar deneniyor…', 'bad'],
+                     limit: ['bağlantı limiti doldu, 10 dk sonra tekrar denenecek', 'bad'] };
 function connect(user) {
   if (es) es.close();
   setStatus('bağlanıyor…');
@@ -475,7 +476,12 @@ function connect(user) {
     if (e.type === 'hediye') onGift(e);
     else if (e.type === 'yorum') onComment(e);
     else if (e.type === 'hediyeler') { Object.assign(giftImages, e.liste || {}); updateGiftIcons(); }
-    else if (e.type === 'durum') { const s = statusText[e.durum] || [e.durum]; setStatus(s[0], s[1]); }
+    else if (e.type === 'durum') {
+      let s = statusText[e.durum] || [e.durum];
+      if (e.durum === 'hata' && /online/i.test(e.mesaj || '')) s = [`yayın açık değil, ${e.bekle || 30} sn sonra tekrar denenecek`, 'bad'];
+      else if (e.durum === 'hata' && e.bekle) s = [`bağlanamadı, ${e.bekle} sn sonra tekrar denenecek`, 'bad'];
+      setStatus(s[0], s[1]);
+    }
   };
   es.onerror = () => setStatus('sunucuya bağlanılıyor…', 'bad');
 }
