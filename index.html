@@ -40,6 +40,10 @@
             background: linear-gradient(135deg, #ffd54a, #ff8a00); color: #1a1000; font-weight: 900; font-size: 24px;
             padding: 14px 22px; border-radius: 18px; text-align: center; box-shadow: 0 10px 40px #000a; pointer-events: none;
             transition: all .35s cubic-bezier(.2,1.4,.4,1); white-space: nowrap; }
+  #unmute { display: none; position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 110px); transform: translateX(-50%); z-index: 25;
+            background: #fe2c55; color: #fff; border: 0; border-radius: 30px; padding: 14px 22px; font-size: 16px; font-weight: 800;
+            box-shadow: 0 8px 30px #000a; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { transform: translateX(-50%) scale(1.06); } }
   #banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
   #feed { height: 86px; overflow: hidden; padding: 8px 120px 4px 4px; font-size: 13px; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; }
@@ -73,6 +77,7 @@
   <div id="feed"></div>
 </div>
 <div id="banner"></div>
+<button id="unmute">🔊 Ses kapandı — açmak için dokun</button>
 <div id="tools"><button id="mute">🔊</button><button id="reset">⟲</button><button id="back">⚙︎</button></div>
 
 <div id="start"><div class="card">
@@ -483,19 +488,42 @@ $('#user').value = store.get('yaris-user') || '';
 async function begin(demo) {
   // ses kilidini dokunma anında aç (iPhone şartı)
   try {
-    if (navigator.audioSession) navigator.audioSession.type = 'playback'; // sessiz modda da çalsın
+    if (navigator.audioSession) navigator.audioSession.type = 'ambient'; // TikTok yayınıyla birlikte çalabilsin (karışabilir ses)
     if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination); }
     const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0);
     ctx.resume();
   } catch {}
+  started = true;
+  try { ctx.onstatechange = () => setTimeout(checkAudio, 200); } catch {}
   $('#start').style.display = 'none';
   sizeCanvases();
   setStatus('müzikler yükleniyor…');
   await loadSongs();
   leader = -1; render();
+  if (leader < 0) showBanner('İlk hediyeyi bekliyor… 🎁');
   if (demo) startDemo();
   else { const u = $('#user').value.replace(/^@/, '').trim(); store.set('yaris-user', u); connect(u); }
 }
+// iPhone başka bir uygulama (TikTok yayını) sesi alınca oyunun sesini durdurur: geri açmayı dene, olmazsa buton göster
+let started = false;
+function checkAudio() {
+  if (!ctx || !started) return;
+  if (ctx.state === 'running') { $('#unmute').style.display = 'none'; return; }
+  ctx.resume().then(() => {
+    if (ctx.state === 'running') { $('#unmute').style.display = 'none'; if (leader >= 0) playMusic(teams[leader]); }
+    else $('#unmute').style.display = 'block';
+  }).catch(() => { $('#unmute').style.display = 'block'; });
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(checkAudio, 300); });
+window.addEventListener('pageshow', () => setTimeout(checkAudio, 300));
+window.addEventListener('focus', () => setTimeout(checkAudio, 300));
+setInterval(checkAudio, 3000);
+$('#unmute').onclick = () => {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch {}
+  ctx.resume().then(() => { $('#unmute').style.display = 'none'; if (leader >= 0) playMusic(teams[leader]); });
+};
+document.addEventListener('touchend', () => { if (ctx && started && ctx.state !== 'running') $('#unmute').onclick(); }, { passive: true });
+
 $('#go').onclick = () => { if (!$('#user').value.trim()) { $('#user').focus(); return; } begin(false); };
 $('#demo').onclick = () => begin(true);
 $('#mute').onclick = () => { muted = !muted; $('#mute').textContent = muted ? '🔇' : '🔊'; muted ? stopMusic() : playMusic(teams[leader]); };
