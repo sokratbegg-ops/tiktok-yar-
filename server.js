@@ -80,6 +80,11 @@ function connect(user, room) {
     }
   });
 
+  conn.on(WebcastEvent.LIKE, d => {
+    const adet = d.likeCount || 0;
+    if (adet > 0) send(room, 'begeni', { adet, kullanici: d.user?.nickname || d.user?.uniqueId || '' });
+  });
+
   conn.on(WebcastEvent.CHAT, d => {
     send(room, 'yorum', { yorum: d.comment || '', kullanici: d.user?.nickname || d.user?.uniqueId || '' });
   });

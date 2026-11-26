@@ -29,7 +29,8 @@
               font-size: 14px; font-weight: 800; width: max-content; box-shadow: 0 4px 14px #fe2c5555; }
   .giftchip .gi { width: 26px; height: 26px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; overflow: hidden; }
   .giftchip .gi img { width: 100%; height: 100%; object-fit: contain; }
-  .hint { font-size: 11px; color: #c9d1e0; opacity: .85; padding-left: 4px; }
+  .hint b.lk { color: #ff6b8a; }
+  .hint { line-height: 1.5; font-size: 11px; color: #c9d1e0; opacity: .85; padding-left: 4px; }
   .mini { display: inline-block; width: 26px; height: 18px; border-radius: 3px; position: relative; }
   .mini.sun::after { content: ""; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: #febd11; }
   .pop { position: absolute; z-index: 4; font-weight: 900; font-size: 22px; color: #ffd54a; text-shadow: 0 2px 6px #000;
@@ -110,6 +111,19 @@ function flagHTML(t) {
 }
 const flagText = t => t.bayrak || '☀️';
 
+// ================= Beğeniler =================
+const likeTeam = teams.find(t => C.begeniTakimi && norm0(t.ad) === norm0(C.begeniTakimi));
+const likePer = Math.max(1, C.begeniBasinaPuan || 50);
+let likeBank = 0;
+function norm0(x) { return String(x || '').toLocaleLowerCase('tr-TR').trim(); }
+function hintFor(t) {
+  const words = t.kelimeler.filter(k => !/[\u{1F1E6}-\u{1F1FF}]/u.test(k)).slice(0, 1).map(k => `"${k}"`);
+  const marks = t.kelimeler.filter(k => /^[\p{P}]+$/u.test(k)).map(k => `"${k}"`);
+  let h = `veya yoruma ${[...new Set([...words, ...marks])].join(' ya da ')} yaz`;
+  if (t === likeTeam) h += `<br>❤️ ekrana bas: ${likePer} beğeni = 1 puan <b class="lk">0/${likePer}</b>`;
+  return h;
+}
+
 // ================= Pistler =================
 const track = $('#track');
 teams.forEach(t => {
@@ -117,7 +131,7 @@ teams.forEach(t => {
   lane.innerHTML = `<canvas></canvas><div class="badge">
       <div class="score">${flagHTML(t)} <span class="pts">0</span></div>
       <div class="giftchip"><span class="gi">${t.hediyeIkon || '🎁'}</span><span>${t.hediyeAdi || t.hediye} at</span></div>
-      <div class="hint">veya yoruma "${t.kelimeler[0]}" yaz</div></div>`;
+      <div class="hint">${hintFor(t)}</div></div>`;
   track.appendChild(lane);
   t.lane = lane; t.cv = lane.querySelector('canvas'); t.cx = t.cv.getContext('2d');
   t.pts = lane.querySelector('.pts'); t.gi = lane.querySelector('.gi');
@@ -455,11 +469,23 @@ function onGift(e) {
   feed(`🎁 ${e.kullanici} → ${flagText(t)} ${t.ad} (${t.hediyeAdi || e.hediye} x${e.adet})`);
   addPoints(t, pts);
 }
+function onLike(e) {
+  if (!likeTeam) return;
+  likeBank += e.adet;
+  const pts = Math.floor(likeBank / likePer);
+  if (pts > 0) { likeBank -= pts * likePer; feed(`❤️ beğeniler → ${flagText(likeTeam)} ${likeTeam.ad} +${pts}`); addPoints(likeTeam, pts); }
+  const lk = likeTeam.lane.querySelector('.lk'); if (lk) lk.textContent = `${likeBank}/${likePer}`;
+}
 function onComment(e) {
   if (!C.yorumPuani) return;
   const text = norm(e.yorum), words = text.split(/[^\p{L}\p{N}]+/u);
   for (const t of teams) {
-    const hit = t.kelimeler.some(k => { k = norm(k); return /[\p{L}\p{N}]/u.test(k) ? words.includes(k) : text.includes(k); });
+    const hit = t.kelimeler.some(k => {
+      k = norm(k);
+      if (/[\p{L}\p{N}]/u.test(k)) return words.includes(k);
+      if (/^[\p{P}]+$/u.test(k)) { const only = text.replace(/\s+/g, ''); return only.length > 0 && [...only].every(ch => k.includes(ch)); }
+      return text.includes(k);
+    });
     if (hit) { feed(`💬 ${e.kullanici}: ${flagText(t)} ${t.ad}`); addPoints(t, C.yorumPuani); return; }
   }
 }
@@ -475,6 +501,7 @@ function connect(user) {
     const e = JSON.parse(m.data);
     if (e.type === 'hediye') onGift(e);
     else if (e.type === 'yorum') onComment(e);
+    else if (e.type === 'begeni') onLike(e);
     else if (e.type === 'hediyeler') { Object.assign(giftImages, e.liste || {}); updateGiftIcons(); }
     else if (e.type === 'durum') {
       let s = statusText[e.durum] || [e.durum];
@@ -490,7 +517,8 @@ function startDemo() {
   const names = ['Ali', 'Ayşe', 'Mehmet', 'Zeynep', 'Rojda', 'Baran', 'Serhat'];
   demoTimer = setInterval(() => {
     const t = teams[Math.floor(Math.random() * teams.length)], who = names[Math.floor(Math.random() * names.length)];
-    if (Math.random() < 0.3) onComment({ kullanici: who, yorum: t.kelimeler[0] });
+    if (Math.random() < 0.25) onLike({ kullanici: who, adet: 5 + Math.floor(Math.random() * 15) });
+    if (Math.random() < 0.3) onComment({ kullanici: who, yorum: Math.random() < 0.5 && t.kelimeler.includes('.') ? '.' : t.kelimeler[0] });
     else onGift({ kullanici: who, hediye: t.hediye, adet: 1 + Math.floor(Math.random() * 5), coin: 1 });
   }, 800);
 }
@@ -542,7 +570,7 @@ $('#mute').onclick = () => { muted = !muted; $('#mute').textContent = muted ? '�
 let resetArm = 0;
 $('#reset').onclick = () => {
   const now = Date.now(); if (now - resetArm > 1500) { resetArm = now; showBanner('Sıfırlamak için tekrar dokun'); return; }
-  resetArm = 0; teams.forEach(t => { t.puan = 0; t.offset = 0; }); leader = -1; stopMusic(); render();
+  resetArm = 0; likeBank = 0; teams.forEach(t => { t.puan = 0; t.offset = 0; }); leader = -1; stopMusic(); render();
 };
 $('#back').onclick = () => { clearInterval(demoTimer); if (es) es.close(); stopMusic(); $('#start').style.display = 'flex'; };
 
