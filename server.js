@@ -75,18 +75,18 @@ function connect(user, room) {
       send(room, 'hediye', {
         hediye: giftName, giftId: d.giftId, adet: delta, coin,
         resim: g.giftImage?.url?.[0] || g.icon?.url?.[0] || d.extendedGiftInfo?.image?.url_list?.[0] || '',
-        kullanici: d.user?.nickname || d.user?.uniqueId || '',
+        kullanici: d.user?.nickname || d.user?.uniqueId || '', uid: d.user?.uniqueId || d.user?.userId || '',
       });
     }
   });
 
   conn.on(WebcastEvent.LIKE, d => {
     const adet = d.likeCount || 0;
-    if (adet > 0) send(room, 'begeni', { adet, kullanici: d.user?.nickname || d.user?.uniqueId || '' });
+    if (adet > 0) send(room, 'begeni', { adet, kullanici: d.user?.nickname || d.user?.uniqueId || '', uid: d.user?.uniqueId || d.user?.userId || '' });
   });
 
   conn.on(WebcastEvent.CHAT, d => {
-    send(room, 'yorum', { yorum: d.comment || '', kullanici: d.user?.nickname || d.user?.uniqueId || '' });
+    send(room, 'yorum', { yorum: d.comment || '', kullanici: d.user?.nickname || d.user?.uniqueId || '', uid: d.user?.uniqueId || d.user?.userId || '' });
   });
 
   conn.on(WebcastEvent.STREAM_END, () => {

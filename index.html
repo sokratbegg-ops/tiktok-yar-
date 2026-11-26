@@ -11,8 +11,9 @@
   html, body { height: 100%; background: #070b16; color: #fff; font-family: -apple-system, "SF Pro Display", system-ui, sans-serif; overflow: hidden; }
   #app { height: 100%; display: flex; flex-direction: column; padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom); }
 
-  header { text-align: center; padding: 14px 6px 8px; }
-  header h1 { font-size: 17px; font-weight: 800; line-height: 1.25; text-shadow: 0 2px 8px #000; }
+  header { text-align: center; padding: 10px 6px 6px; }
+  header .rule { font-size: 11px; color: #ffb3c4; margin-top: 3px; }
+  header h1 { font-size: 15px; font-weight: 800; line-height: 1.25; text-shadow: 0 2px 8px #000; }
   #status { display: inline-block; margin-top: 6px; font-size: 11px; padding: 3px 9px; border-radius: 20px; background: #ffffff14; color: #9aa4b8; }
   #status.ok { background: #16a34a33; color: #4ade80; }
   #status.bad { background: #dc262633; color: #f87171; }
@@ -22,12 +23,14 @@
   .lane { position: relative; flex: 1; border-bottom: 2px solid #4fc3f733; }
   .lane:last-child { border-bottom: none; }
   .lane canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .badge { position: absolute; left: 10px; top: 10px; z-index: 3; display: flex; flex-direction: column; gap: 6px; }
+  .badge { position: absolute; left: 8px; top: 6px; right: 8px; z-index: 3; display: flex; flex-direction: column; gap: 3px; }
+  .badge .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .score .nm { font-size: 13px; font-weight: 800; opacity: .9; }
   .score { display: inline-flex; align-items: center; gap: 7px; background: #000b; border: 1px solid #ffffff2a; border-radius: 11px;
-           padding: 4px 10px; font-size: 20px; font-weight: 900; width: max-content; }
-  .giftchip { display: inline-flex; align-items: center; gap: 6px; background: #fe2c55; border-radius: 20px; padding: 4px 11px 4px 5px;
-              font-size: 14px; font-weight: 800; width: max-content; box-shadow: 0 4px 14px #fe2c5555; }
-  .giftchip .gi { width: 26px; height: 26px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; overflow: hidden; }
+           padding: 3px 9px; font-size: 17px; font-weight: 900; width: max-content; }
+  .giftchip { display: inline-flex; align-items: center; gap: 6px; background: #fe2c55; border-radius: 20px; padding: 3px 10px 3px 4px;
+              font-size: 13px; font-weight: 800; width: max-content; box-shadow: 0 4px 14px #fe2c5555; }
+  .giftchip .gi { width: 24px; height: 24px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; overflow: hidden; }
   .giftchip .gi img { width: 100%; height: 100%; object-fit: contain; }
   .hint b.lk { color: #ff6b8a; }
   .hint { line-height: 1.5; font-size: 11px; color: #c9d1e0; opacity: .85; padding-left: 4px; }
@@ -47,7 +50,7 @@
   @keyframes pulse { 50% { transform: translateX(-50%) scale(1.06); } }
   #banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
-  #feed { height: 86px; overflow: hidden; padding: 8px 120px 4px 4px; font-size: 13px; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; }
+  #feed { height: 72px; overflow: hidden; padding: 8px 120px 4px 4px; font-size: 13px; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; }
   #feed div { opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: fin .3s; }
   @keyframes fin { from { opacity: 0; transform: translateY(8px); } }
 
@@ -73,7 +76,7 @@
 </head>
 <body>
 <div id="app">
-  <header><h1 id="title"></h1><div id="status">bağlanmadı</div></header>
+  <header><h1 id="title"></h1><div class="rule" id="rule"></div><div id="status">bağlanmadı</div></header>
   <div id="track"></div>
   <div id="feed"></div>
 </div>
@@ -103,6 +106,7 @@ const teams = C.ulkeler.map((u, i) => ({ ...u, i, puan: 0, x: 0, phase: Math.ran
 let leader = -1, muted = false, es = null, demoTimer = null, giftImages = {};
 try { const sv = JSON.parse(store.get('yaris-puan') || 'null'); if (sv && sv.length === teams.length) sv.forEach((p, i) => teams[i].puan = p); } catch {}
 $('#title').textContent = C.baslik;
+$('#rule').textContent = `❤️ Yoruma takımını yaz, sonra ekrana bas: ${Math.max(1, C.begeniBasinaPuan || 50)} beğeni = 1 puan`;
 
 function flagHTML(t) {
   if (t.bayrak) return t.bayrak;
@@ -112,25 +116,22 @@ function flagHTML(t) {
 const flagText = t => t.bayrak || '☀️';
 
 // ================= Beğeniler =================
-const likeTeam = teams.find(t => C.begeniTakimi && norm0(t.ad) === norm0(C.begeniTakimi));
 const likePer = Math.max(1, C.begeniBasinaPuan || 50);
-let likeBank = 0;
+const userTeam = {};          // izleyici -> seçtiği takım (yorum ya da hediyeyle)
+teams.forEach(t => t.likeBank = 0);
 function norm0(x) { return String(x || '').toLocaleLowerCase('tr-TR').trim(); }
 function hintFor(t) {
-  const words = t.kelimeler.filter(k => !/[\u{1F1E6}-\u{1F1FF}]/u.test(k)).slice(0, 1).map(k => `"${k}"`);
-  const marks = t.kelimeler.filter(k => /^[\p{P}]+$/u.test(k)).map(k => `"${k}"`);
-  let h = `veya yoruma ${[...new Set([...words, ...marks])].join(' ya da ')} yaz`;
-  if (t === likeTeam) h += `<br>❤️ ekrana bas: ${likePer} beğeni = 1 puan <b class="lk">0/${likePer}</b>`;
-  return h;
+  const kisa = [...t.kelimeler].sort((a, b) => a.length - b.length)[0];
+  return `veya yoruma "${kisa}" yaz · ❤️ <b class="lk">0/${likePer}</b>`;
 }
 
 // ================= Pistler =================
 const track = $('#track');
 teams.forEach(t => {
   const lane = document.createElement('div'); lane.className = 'lane';
-  lane.innerHTML = `<canvas></canvas><div class="badge">
-      <div class="score">${flagHTML(t)} <span class="pts">0</span></div>
-      <div class="giftchip"><span class="gi">${/\.(png|jpe?g|webp)$/i.test(t.hediyeIkon || '') ? `<img src="${t.hediyeIkon}" alt="">` : (t.hediyeIkon || '🎁')}</span><span>${t.hediyeAdi || t.hediye} at</span></div>
+  lane.innerHTML = `<canvas></canvas><div class="badge"><div class="row">
+      <div class="score">${flagHTML(t)} <span class="nm">${t.ad}</span> <span class="pts">0</span></div>
+      <div class="giftchip"><span class="gi">${/\.(png|jpe?g|webp)$/i.test(t.hediyeIkon || '') ? `<img src="${t.hediyeIkon}" alt="">` : (t.hediyeIkon || '🎁')}</span><span>${t.hediyeAdi || t.hediye} at</span></div></div>
       <div class="hint">${hintFor(t)}</div></div>`;
   track.appendChild(lane);
   t.lane = lane; t.cv = lane.querySelector('canvas'); t.cx = t.cv.getContext('2d');
@@ -205,6 +206,35 @@ function bodyShapes(c, kind, s, p) {
     c.quadraticCurveTo(-0.66 * s, 0.06 * s + sway, -0.4 * s, 0.04 * s); c.closePath(); c.fill();
   }
 }
+// ---- kuşlar (kanarya, kartal): kanat çırparak uçar ----
+const isBird = k => k === 'kanarya' || k === 'kartal';
+function wingShape(c, kind, s, p) {
+  const big = kind === 'kartal';
+  c.save(); c.translate(0.02 * s, -0.12 * s);
+  c.rotate(0.15 - 0.95 * Math.sin(p));                 // kanat çırpma
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.quadraticCurveTo(-0.25 * s, -0.16 * s, -(big ? 0.62 : 0.45) * s, -0.04 * s);
+  if (big) { for (let k = 0; k < 4; k++) c.lineTo(-(0.62 - k * 0.1) * s, (0.03 + (k % 2) * 0.04) * s); } // kartal tüy uçları
+  c.quadraticCurveTo(-0.22 * s, 0.12 * s, 0, 0.06 * s);
+  c.closePath(); c.fill(); c.restore();
+}
+function birdBody(c, kind, s, p) {
+  const big = kind === 'kartal', sway = Math.sin(p) * 0.04 * s;
+  c.beginPath(); c.ellipse(0, 0, (big ? 0.38 : 0.32) * s, (big ? 0.2 : 0.24) * s, -0.1, 0, 7); c.fill();          // gövde
+  c.beginPath(); c.arc(0.3 * s, -0.22 * s, (big ? 0.15 : 0.17) * s, 0, 7); c.fill();                               // kafa
+  c.beginPath();                                                                                                     // kuyruk
+  c.moveTo(-0.26 * s, -0.06 * s); c.lineTo(-(big ? 0.7 : 0.6) * s, -0.16 * s + sway); c.lineTo(-(big ? 0.72 : 0.58) * s, 0.06 * s + sway); c.lineTo(-0.26 * s, 0.08 * s);
+  c.closePath(); c.fill();
+}
+function beak(c, kind, s) {
+  c.fillStyle = kind === 'kartal' ? '#f2b705' : '#ff9d1c';
+  c.beginPath();
+  if (kind === 'kartal') { c.moveTo(0.42 * s, -0.27 * s); c.quadraticCurveTo(0.58 * s, -0.27 * s, 0.57 * s, -0.15 * s); c.lineTo(0.5 * s, -0.19 * s); c.lineTo(0.42 * s, -0.17 * s); }
+  else { c.moveTo(0.44 * s, -0.27 * s); c.lineTo(0.58 * s, -0.22 * s); c.lineTo(0.44 * s, -0.17 * s); }
+  c.closePath(); c.fill();
+}
+
 const off = document.createElement('canvas'), oc = off.getContext('2d');
 const off2 = document.createElement('canvas'), oc2 = off2.getContext('2d');
 const off3 = document.createElement('canvas'), oc3 = off3.getContext('2d');
@@ -246,9 +276,9 @@ function star(c, x, y, r) {
 }
 
 function drawAnimal(ctx, t, x, groundY, s, glow) {
-  const p = t.phase;
-  const bounce = Math.abs(Math.cos(p)) * 0.07 * s;
-  const tilt = Math.sin(p) * 0.07;
+  const p = t.phase, bird = isBird(t.hayvan);
+  const bounce = bird ? 0.1 * s + Math.sin(p * 0.5) * 0.05 * s : Math.abs(Math.cos(p)) * 0.07 * s;
+  const tilt = bird ? -0.08 + Math.sin(p * 0.5) * 0.05 : Math.sin(p) * 0.07;
   const w = Math.ceil(2.0 * s), h = Math.ceil(1.45 * s);
   if (off.width !== w || off.height !== h) { off.width = off2.width = w; off.height = off2.height = h; }
   const ox = w * 0.47, oy = h * 0.42;
@@ -256,8 +286,11 @@ function drawAnimal(ctx, t, x, groundY, s, glow) {
   // uzak bacaklar (koyu)
   oc2.setTransform(1, 0, 0, 1, 0, 0); oc2.clearRect(0, 0, w, h);
   oc2.translate(ox, oy); oc2.rotate(tilt); oc2.fillStyle = oc2.strokeStyle = '#000';
-  strokeLeg(oc2, legPts(0.3 * s, 0.04 * s, s, p + 0.55, true), s);
-  strokeLeg(oc2, legPts(-0.3 * s, 0.04 * s, s, p + Math.PI + 0.55, false), s);
+  if (bird) wingShape(oc2, t.hayvan, s, p + 0.35);
+  else {
+    strokeLeg(oc2, legPts(0.3 * s, 0.04 * s, s, p + 0.55, true), s);
+    strokeLeg(oc2, legPts(-0.3 * s, 0.04 * s, s, p + Math.PI + 0.55, false), s);
+  }
   oc2.setTransform(1, 0, 0, 1, 0, 0);
   paintFlag(oc2, t, s, w, h, ox, oy);
   oc2.globalCompositeOperation = 'source-atop'; oc2.fillStyle = 'rgba(0,0,0,0.38)'; oc2.fillRect(0, 0, w, h); oc2.globalCompositeOperation = 'source-over';
@@ -265,19 +298,28 @@ function drawAnimal(ctx, t, x, groundY, s, glow) {
   // gövde + yakın bacaklar
   oc.setTransform(1, 0, 0, 1, 0, 0); oc.clearRect(0, 0, w, h);
   oc.translate(ox, oy); oc.rotate(tilt); oc.fillStyle = oc.strokeStyle = '#000';
-  bodyShapes(oc, t.hayvan, s, p);
-  strokeLeg(oc, legPts(0.3 * s, 0.04 * s, s, p, true), s);
-  strokeLeg(oc, legPts(-0.3 * s, 0.04 * s, s, p + Math.PI, false), s);
+  if (bird) { birdBody(oc, t.hayvan, s, p); wingShape(oc, t.hayvan, s, p); }
+  else {
+    bodyShapes(oc, t.hayvan, s, p);
+    strokeLeg(oc, legPts(0.3 * s, 0.04 * s, s, p, true), s);
+    strokeLeg(oc, legPts(-0.3 * s, 0.04 * s, s, p + Math.PI, false), s);
+  }
   oc.setTransform(1, 0, 0, 1, 0, 0);
   paintFlag(oc, t, s, w, h, ox, oy);
   // göz
   oc.save(); oc.translate(ox, oy); oc.rotate(tilt); oc.fillStyle = '#111';
-  oc.beginPath(); oc.arc((t.hayvan === 'aslan' ? 0.66 : 0.6) * s, -0.26 * s, 0.022 * s, 0, 7); oc.fill(); oc.restore();
+  if (bird) {
+    oc.beginPath(); oc.arc(0.35 * s, -0.26 * s, 0.03 * s, 0, 7); oc.fill();
+    beak(oc, t.hayvan, s);
+    oc.strokeStyle = 'rgba(0,0,0,0.35)'; oc.lineWidth = Math.max(1, 0.015 * s); // kanat çizgisi
+    oc.save(); oc.globalCompositeOperation = 'source-atop'; oc.fillStyle = 'rgba(255,255,255,0.12)'; wingShape(oc, t.hayvan, s, p); oc.restore();
+  } else { oc.beginPath(); oc.arc((t.hayvan === 'aslan' ? 0.66 : 0.6) * s, -0.26 * s, 0.022 * s, 0, 7); oc.fill(); }
+  oc.restore();
 
   // yer gölgesi
   const footY = groundY;
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(x, footY, 0.55 * s, 0.06 * s, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x, footY, (bird ? 0.35 : 0.55) * s, (bird ? 0.04 : 0.06) * s, 0, 0, 7); ctx.fill();
 
   const dx = x - ox, dy = footY - 0.62 * s - bounce - oy;
   ctx.save();
@@ -329,7 +371,7 @@ function frame(now) {
     t.phase += dt * (11 + t.boost * 9);
 
     // toz
-    if (Math.cos(t.phase) > 0.92 && Math.random() < 0.6) t.dust.push({ x: t.x - 0.35 * s, y: groundY, r: 0.04 * s, a: 0.5 });
+    if (!isBird(t.hayvan) && Math.cos(t.phase) > 0.92 && Math.random() < 0.6) t.dust.push({ x: t.x - 0.35 * s, y: groundY, r: 0.04 * s, a: 0.5 });
     t.dust.forEach(d => { d.x -= dt * 160; d.y -= dt * 18; d.r += dt * 0.25 * s; d.a -= dt * 0.9; });
     t.dust = t.dust.filter(d => d.a > 0);
     t.dust.forEach(d => { c.fillStyle = `rgba(200,190,170,${d.a})`; c.beginPath(); c.arc(d.x, d.y, d.r, 0, 7); c.fill(); });
@@ -392,7 +434,7 @@ async function loadSongs() {
   for (const t of teams) {
     t.buf = null;
     let data = null;
-    const saved = await DB.get('muzik-' + t.i);
+    const saved = await DB.get('muzik-' + t.ad);
     if (saved && saved.data) data = saved.data.slice(0);
     else if (t.muzik) { try { data = await (await fetch(t.muzik)).arrayBuffer(); } catch {} }
     if (data) { try { t.buf = await ctx.decodeAudioData(data); } catch { feed(`⚠️ ${t.ad} müziği açılamadı`); } }
@@ -448,15 +490,15 @@ teams.forEach(t => {
   rows.appendChild(row);
   const fn = row.querySelector('.fn'), inp = row.querySelector('input'), del = row.querySelector('button');
   const show = s => { fn.textContent = s ? s : (t.muzik ? t.muzik : 'seçilmedi (melodi çalar)'); del.style.display = s ? '' : 'none'; };
-  DB.get('muzik-' + t.i).then(v => show(v && v.name));
+  DB.get('muzik-' + t.ad).then(v => show(v && v.name));
   inp.onchange = async () => {
     const f = inp.files[0]; if (!f) return;
     fn.textContent = 'kaydediliyor…';
     const data = await f.arrayBuffer();
-    await DB.set('muzik-' + t.i, { name: f.name, data });
+    await DB.set('muzik-' + t.ad, { name: f.name, data });
     show(f.name);
   };
-  del.onclick = async () => { await DB.del('muzik-' + t.i); show(null); };
+  del.onclick = async () => { await DB.del('muzik-' + t.ad); show(null); };
 });
 
 // ================= Olaylar =================
@@ -465,19 +507,26 @@ function onGift(e) {
   if (e.resim) { giftImages[norm(e.hediye)] = giftImages[norm(e.hediye)] || e.resim; updateGiftIcons(); }
   const t = teams.find(t => norm(t.hediye) === norm(e.hediye) || String(t.hediye) === String(e.giftId));
   if (!t) { feed(`🎁 ${e.kullanici}: ${e.hediye} x${e.adet}`); return; }
+  userTeam[e.uid || e.kullanici] = t;
   const pts = C.hediyeCoinIleCarp ? (e.coin || 1) * e.adet : e.adet;
   feed(`🎁 ${e.kullanici} → ${flagText(t)} ${t.ad} (${t.hediyeAdi || e.hediye} x${e.adet})`);
   addPoints(t, pts);
 }
 function onLike(e) {
-  if (!likeTeam) return;
-  likeBank += e.adet;
-  const pts = Math.floor(likeBank / likePer);
-  if (pts > 0) { likeBank -= pts * likePer; feed(`❤️ beğeniler → ${flagText(likeTeam)} ${likeTeam.ad} +${pts}`); addPoints(likeTeam, pts); }
-  const lk = likeTeam.lane.querySelector('.lk'); if (lk) lk.textContent = `${likeBank}/${likePer}`;
+  const t = userTeam[e.uid || e.kullanici];
+  if (!t) { maybeLikeHint(e); return; }
+  t.likeBank += e.adet;
+  const pts = Math.floor(t.likeBank / likePer);
+  if (pts > 0) { t.likeBank -= pts * likePer; feed(`❤️ beğeniler → ${flagText(t)} ${t.ad} +${pts}`); addPoints(t, pts); }
+  const lk = t.lane.querySelector('.lk'); if (lk) lk.textContent = `${t.likeBank}/${likePer}`;
+}
+let likeHintAt = 0;
+function maybeLikeHint(e) { // takım seçmeden beğenen olursa arada bir hatırlat
+  if (Date.now() - likeHintAt < 20000) return;
+  likeHintAt = Date.now();
+  feed(`❤️ ${e.kullanici}: beğenilerin sayılsın diye önce yoruma takımını yaz!`);
 }
 function onComment(e) {
-  if (!C.yorumPuani) return;
   const text = norm(e.yorum), words = text.split(/[^\p{L}\p{N}]+/u);
   for (const t of teams) {
     const hit = t.kelimeler.some(k => {
@@ -486,7 +535,7 @@ function onComment(e) {
       if (/^[\p{P}]+$/u.test(k)) { const only = text.replace(/\s+/g, ''); return only.length > 0 && [...only].every(ch => k.includes(ch)); }
       return text.includes(k);
     });
-    if (hit) { feed(`💬 ${e.kullanici}: ${flagText(t)} ${t.ad}`); addPoints(t, C.yorumPuani); return; }
+    if (hit) { userTeam[e.uid || e.kullanici] = t; feed(`💬 ${e.kullanici}: ${flagText(t)} ${t.ad}`); if (C.yorumPuani) addPoints(t, C.yorumPuani); return; }
   }
 }
 function setStatus(text, cls) { const s = $('#status'); s.textContent = text; s.className = cls || ''; }
@@ -514,11 +563,11 @@ function connect(user) {
 }
 function startDemo() {
   setStatus('deneme modu');
-  const names = ['Ali', 'Ayşe', 'Mehmet', 'Zeynep', 'Rojda', 'Baran', 'Serhat'];
+  const names = ['Ali', 'Ayşe', 'Mehmet', 'Zeynep', 'Emre', 'Burak', 'Elif', 'Can'];
   demoTimer = setInterval(() => {
     const t = teams[Math.floor(Math.random() * teams.length)], who = names[Math.floor(Math.random() * names.length)];
-    if (Math.random() < 0.25) onLike({ kullanici: who, adet: 5 + Math.floor(Math.random() * 15) });
-    if (Math.random() < 0.3) onComment({ kullanici: who, yorum: Math.random() < 0.5 && t.kelimeler.includes('.') ? '.' : t.kelimeler[0] });
+    if (Math.random() < 0.35) onLike({ kullanici: who, adet: 5 + Math.floor(Math.random() * 20) });
+    if (Math.random() < 0.3) onComment({ kullanici: who, yorum: t.kelimeler[1] || t.kelimeler[0] });
     else onGift({ kullanici: who, hediye: t.hediye, adet: 1 + Math.floor(Math.random() * 5), coin: 1 });
   }, 800);
 }
@@ -570,7 +619,7 @@ $('#mute').onclick = () => { muted = !muted; $('#mute').textContent = muted ? '�
 let resetArm = 0;
 $('#reset').onclick = () => {
   const now = Date.now(); if (now - resetArm > 1500) { resetArm = now; showBanner('Sıfırlamak için tekrar dokun'); return; }
-  resetArm = 0; likeBank = 0; teams.forEach(t => { t.puan = 0; t.offset = 0; }); leader = -1; stopMusic(); render();
+  resetArm = 0; teams.forEach(t => { t.puan = 0; t.offset = 0; t.likeBank = 0; const lk = t.lane.querySelector('.lk'); if (lk) lk.textContent = `0/${likePer}`; }); leader = -1; stopMusic(); render();
 };
 $('#back').onclick = () => { clearInterval(demoTimer); if (es) es.close(); stopMusic(); $('#start').style.display = 'flex'; };
 
