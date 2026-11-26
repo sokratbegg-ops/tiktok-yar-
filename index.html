@@ -71,7 +71,8 @@
   .mrow .fn { font-size: 11px; color: #9aa4b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mrow .info { flex: 1; min-width: 0; }
   .mrow label, .mrow button { flex: none; font-size: 13px; font-weight: 700; padding: 8px 10px; border-radius: 9px; background: #2a3654; color: #fff; border: 0; }
-  .mrow input { display: none; }
+  .mrow input[type=file] { display: none; }
+  #modeInfo { white-space: normal; }
 </style>
 </head>
 <body>
@@ -90,6 +91,19 @@
   <input type="text" id="user" placeholder="@kullaniciadi" autocapitalize="off" autocorrect="off" spellcheck="false">
   <div class="sec">🎵 Öne geçince çalacak müzikler</div>
   <div id="musicRows"></div>
+  <div class="sec">🔊 Ses</div>
+  <div class="mrow" style="flex-wrap:wrap">
+    <div class="info"><div class="nm">Ses modu</div><div class="fn" id="modeInfo"></div></div>
+    <select id="amode" style="font-size:14px;padding:8px;border-radius:9px;background:#2a3654;color:#fff;border:0">
+      <option value="ambient">Karışık (önerilen)</option>
+      <option value="playback">Güçlü</option>
+    </select>
+    <div style="width:100%;display:flex;align-items:center;gap:8px;margin-top:8px">
+      <span style="font-size:12px;color:#9aa4b8">Ses gücü</span>
+      <input type="range" id="boost" min="1" max="3" step="0.25" style="flex:1">
+      <b id="boostV" style="font-size:12px"></b>
+    </div>
+  </div>
   <button class="bigbtn" id="go">Başlat</button>
   <button class="bigbtn" id="demo">Deneme modu (sahte hediyeler)</button>
 </div></div>
@@ -574,11 +588,28 @@ function startDemo() {
 
 // ================= Başlat =================
 $('#user').value = store.get('yaris-user') || '';
+const amode = $('#amode'), boost = $('#boost');
+amode.value = store.get('yaris-amode') || 'ambient';
+boost.value = store.get('yaris-boost') || '2';
+const modeTexts = { ambient: 'TikTok yayınıyla birlikte çalar. Sessiz modu kapat.', playback: 'Daha yüksek çalar; yayın başlayınca kesilirse "Karışık"a dön.' };
+function showAudioSettings() { $('#modeInfo').textContent = modeTexts[amode.value]; $('#boostV').textContent = 'x' + boost.value; }
+amode.onchange = () => { store.set('yaris-amode', amode.value); showAudioSettings(); };
+boost.oninput = () => { store.set('yaris-boost', boost.value); showAudioSettings(); if (master) master.gain.value = +boost.value; };
+showAudioSettings();
 async function begin(demo) {
   // ses kilidini dokunma anında aç (iPhone şartı)
   try {
-    if (navigator.audioSession) navigator.audioSession.type = 'ambient'; // TikTok yayınıyla birlikte çalabilsin (karışabilir ses)
-    if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination); }
+    if (navigator.audioSession) navigator.audioSession.type = amode.value; // ambient: TikTok ile karışır, playback: daha güçlü
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain();
+      // yükseltilen sesi bozmamak için sıkıştırıcı + sınırlayıcı
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -18; comp.knee.value = 6; comp.ratio.value = 12; comp.attack.value = 0.003; comp.release.value = 0.2;
+      const out = ctx.createGain(); out.gain.value = 1.0;
+      master.connect(comp); comp.connect(out); out.connect(ctx.destination);
+    }
+    master.gain.value = +boost.value;
     const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0);
     ctx.resume();
   } catch {}
@@ -608,7 +639,7 @@ window.addEventListener('pageshow', () => setTimeout(checkAudio, 300));
 window.addEventListener('focus', () => setTimeout(checkAudio, 300));
 setInterval(checkAudio, 3000);
 $('#unmute').onclick = () => {
-  try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch {}
+  try { if (navigator.audioSession) navigator.audioSession.type = amode.value; } catch {}
   ctx.resume().then(() => { $('#unmute').style.display = 'none'; if (leader >= 0) playMusic(teams[leader]); });
 };
 document.addEventListener('touchend', () => { if (ctx && started && ctx.state !== 'running') $('#unmute').onclick(); }, { passive: true });
