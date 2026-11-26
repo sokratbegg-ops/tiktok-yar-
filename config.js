@@ -24,6 +24,6 @@ window.OYUN = {
     { ad: "Türkiye",   bayrak: "🇹🇷", hayvan: "kurt",  renkler: ["#e30a17"], amblem: "ay",
       hediye: "Rose",     hediyeAdi: "Gül",      hediyeIkon: "🌹", kelimeler: ["türkiye", "turkiye", "tr", "türk", "turk", "🇹🇷"], muzik: "" },
     { ad: "Kürdistan", bayrak: "",    hayvan: "aslan", renkler: ["#ed2024", "#ffffff", "#278e43"], amblem: "gunes",
-      hediye: "Heart Me", hediyeAdi: "Heart Me", hediyeIkon: "💗", kelimeler: ["kürdistan", "kurdistan", "kürt", "kurd", "kurdish", "کوردستان", "kurdistane", "."], muzik: "" },
+      hediye: "TikTok",   hediyeAdi: "TikTok",   hediyeIkon: "🎵", kelimeler: ["kürdistan", "kurdistan", "kürt", "kurd", "kurdish", "کوردستان", "kurdistane", "."], muzik: "" },
   ],
 };
