@@ -3,7 +3,7 @@
 //
 // hediye   : O ülkeye puan veren TikTok hediyesinin İngilizce adı (Rose, TikTok, GG, Ice Cream Cone, Heart Me ...)
 // hediyeAdi: Ekranda yazacak hediye adı (Türkçe)
-// hediyeIkon: Yayına bağlanmadan önce gösterilecek simge. Bağlanınca TikTok'un gerçek hediye resmi gösterilir.
+// hediyeIkon: Hediyenin simgesi: resim dosyası (ör. "gul.png") ya da emoji
 // kelimeler: Yorumda bunlardan biri yazılırsa ("." gibi işaretler: yorum sadece o işaretten oluşmalı)
 //            Yorumda bunlardan biri yazılırsa ülkeye "yorumPuani" kadar puan eklenir
 // hayvan   : "kurt" veya "aslan"
@@ -22,8 +22,8 @@ window.OYUN = {
 
   ulkeler: [
     { ad: "Türkiye",   bayrak: "🇹🇷", hayvan: "kurt",  renkler: ["#e30a17"], amblem: "ay",
-      hediye: "Rose",     hediyeAdi: "Gül",      hediyeIkon: "🌹", kelimeler: ["türkiye", "turkiye", "tr", "türk", "turk", "🇹🇷"], muzik: "" },
+      hediye: "Rose",     hediyeAdi: "Gül",      hediyeIkon: "gul.png", kelimeler: ["türkiye", "turkiye", "tr", "türk", "turk", "🇹🇷"], muzik: "" },
     { ad: "Kürdistan", bayrak: "",    hayvan: "aslan", renkler: ["#ed2024", "#ffffff", "#278e43"], amblem: "gunes",
-      hediye: "TikTok",   hediyeAdi: "TikTok",   hediyeIkon: "🎵", kelimeler: ["kürdistan", "kurdistan", "kürt", "kurd", "kurdish", "کوردستان", "kurdistane", "."], muzik: "" },
+      hediye: "TikTok",   hediyeAdi: "TikTok",   hediyeIkon: "tiktok.png", kelimeler: ["kürdistan", "kurdistan", "kürt", "kurd", "kurdish", "کوردستان", "kurdistane", "."], muzik: "" },
   ],
 };

@@ -130,7 +130,7 @@ teams.forEach(t => {
   const lane = document.createElement('div'); lane.className = 'lane';
   lane.innerHTML = `<canvas></canvas><div class="badge">
       <div class="score">${flagHTML(t)} <span class="pts">0</span></div>
-      <div class="giftchip"><span class="gi">${t.hediyeIkon || '🎁'}</span><span>${t.hediyeAdi || t.hediye} at</span></div>
+      <div class="giftchip"><span class="gi">${/\.(png|jpe?g|webp)$/i.test(t.hediyeIkon || '') ? `<img src="${t.hediyeIkon}" alt="">` : (t.hediyeIkon || '🎁')}</span><span>${t.hediyeAdi || t.hediye} at</span></div>
       <div class="hint">${hintFor(t)}</div></div>`;
   track.appendChild(lane);
   t.lane = lane; t.cv = lane.querySelector('canvas'); t.cx = t.cv.getContext('2d');

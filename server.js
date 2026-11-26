@@ -113,7 +113,7 @@ function scheduleRetry(user, room, wait = 15000) {
 }
 
 const files = { '/': 'index.html', '/index.html': 'index.html', '/config.js': 'config.js' };
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -134,7 +134,7 @@ http.createServer((req, res) => {
 
   // Müzik dosyaları: projeye eklenen .mp3 / .m4a dosyalarını sunar
   let file = files[url.pathname];
-  if (!file && /^\/[\w\-. ]+\.(mp3|m4a)$/i.test(decodeURIComponent(url.pathname))) file = decodeURIComponent(url.pathname).slice(1);
+  if (!file && /^\/[\w\-. ]+\.(mp3|m4a|png|jpg|webp)$/i.test(decodeURIComponent(url.pathname))) file = decodeURIComponent(url.pathname).slice(1);
   if (!file) { res.writeHead(404); return res.end('yok'); }
   const full = path.join(dir, file);
   fs.readFile(full, (err, buf) => {
